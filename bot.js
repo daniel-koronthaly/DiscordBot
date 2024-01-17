@@ -1,9 +1,16 @@
 const Discord = require('discord.js')
 const voiceDiscord = require('@discordjs/voice')
-const { messageLink, EmbedBuilder} = require('discord.js')
+const { messageLink, EmbedBuilder } = require('discord.js')
 const https = require('https');
 require('dotenv').config()
 
+function pad(numberString, size) {
+  let padded = numberString;
+  while (padded.length < size) {
+    padded = '0' + padded;
+  }
+  return padded;
+}
 
 const client = new Discord.Client({
   intents: ["Guilds", "GuildMessages", 'MessageContent', "GuildVoiceStates"]
@@ -75,12 +82,13 @@ client.on('messageCreate', async (msg) => {
   //   msg.delete();
   // }
   else if (msg.content.startsWith("!fcount")) {
+    const start = performance.now();
     const args = msg.content.split(" ");
     if (args.length !== 2) {
       msg.channel.send("Usage: \"!fcount $(arg)\". Make sure to specify the word to search for.")
       return;
     }
-    const stringToCheck = args[1];
+    const stringToCheck = args[1].toLowerCase();
     console.log("starting processing for " + stringToCheck)
 
     messages = await msg.channel.messages.fetch({ limit: 1 })
@@ -105,10 +113,19 @@ client.on('messageCreate', async (msg) => {
     }
 
     if (newMsg !== "") {
+      newMsg += "\n"
+      const ms = (performance.now() - start)
+      const seconds = Math.floor((ms / 1000) % 60);
+      const minutes = Math.floor((ms / 1000 / 60) % 60);
+      const hours = Math.floor((ms / 1000 / 3600) % 24)
+      const timeFormatted = [
+        pad(hours.toString(), 2),
+        pad(minutes.toString(), 2),
+        pad(seconds.toString(), 2),
+      ].join(':');
+      newMsg += (stringToCheck + " took " + timeFormatted + " to process")
       msg.channel.send(newMsg)
     }
-    console.log("ending processing for " + stringToCheck)
-
   }
   else if (msg.content.startsWith("!affirmation")) {
     https.get('https://www.affirmations.dev/', (res) => {
@@ -147,8 +164,8 @@ client.on('messageCreate', async (msg) => {
 
       res.on('close', () => {
         data = JSON.parse(data);
-        const embed = new Discord.EmbedBuilder().setImage(data["image"]).setTitle(data["name"]).setDescription("#"+data["hex"]).setColor(data["hex"])
-        msg.channel.send({embeds: [embed]});
+        const embed = new Discord.EmbedBuilder().setImage(data["image"]).setTitle(data["name"]).setDescription("#" + data["hex"]).setColor(data["hex"])
+        msg.channel.send({ embeds: [embed] });
       });
     });
   }
