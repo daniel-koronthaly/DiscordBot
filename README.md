@@ -20,3 +20,18 @@ Create .env file containing the Discord bot token in the format
     TOKEN='insertvalidtokenhere'
 
 
+Node.js has to be installed, then
+
+    npm install discord.js
+
+If you are not on Windows, you may have to change
+
+    "program": "${workspaceFolder}\\bot.js"
+
+to 
+
+    "program": "${workspaceFolder}/bot.js"
+
+in launch.json
+
+    
