@@ -5,10 +5,24 @@ const snakeGame = require('./snake.js');
 const { messageLink, EmbedBuilder } = require('discord.js')
 const https = require('https');
 require('dotenv').config()
+const { spawn } = require('child_process');
+const fs = require('fs')
+
+const path = require('path')
+
+function shuffle(a) {
+  var j, x, i;
+  for (i = a.length - 1; i > 0; i--) {
+    j = Math.floor(Math.random() * (i + 1));
+    x = a[i];
+    a[i] = a[j];
+    a[j] = x;
+  }
+  return a;
+}
 
 const dmStates = new Map();
 
-// Register Slash Commands
 const commands = [
   new Discord.SlashCommandBuilder()
     .setName('dm')
@@ -51,6 +65,15 @@ function pad(numberString, size) {
   return padded;
 }
 
+const choices = [
+  'daniel',
+  'nick',
+  'pedro',
+  'roshan',
+  'ryan',
+  'tyler'
+]
+
 const client = new Discord.Client({
   intents: ["Guilds", "GuildMessages", 'MessageContent', "GuildVoiceStates"]
 })
@@ -84,6 +107,10 @@ async function connectToChannel(channel) {
   }
 }
 
+function arraysAreEqual(array1, array2) {
+  return JSON.stringify(array1) === JSON.stringify(array2);
+}
+
 client.on('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`)
   try {
@@ -110,7 +137,11 @@ client.on('messageCreate', async (msg) => {
 
   }
   else if (msg.content === "Say hi") {
+    console.log(msg.author)
     msg.channel.send("Hi <@" + msg.author + ">")
+  }
+  else if (msg.content === "Say hi to Joe") {
+    msg.channel.send("Hi <@" + "197997250566291457" + ">")
   }
   // else if(msg.content.includes("https://twitter.com") || msg.content.includes("https://x.com")){
   //   let newMsg = msg.content;
@@ -187,6 +218,25 @@ client.on('messageCreate', async (msg) => {
       });
     });
   }
+  else if (msg.content.startsWith("!degrade")) {
+    const args = msg.content.split(" ")
+
+    if (args.length !== 2) {
+      msg.channel.send("Give me a person to insult as well.")
+      return;
+    }
+    const endpoint = 'https://insult.mattbas.org/api/insult'
+
+    const params = {
+      who: args[1],
+    };
+    const url = new URL(endpoint);
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    fetch(url)
+      .then(response => response.text()) // Parse the JSON from the response
+      .then(data => msg.channel.send(data)) // Handle the data
+      .catch(error => console.error('Error:', error)); // Handle errors
+  }
   else if (msg.content.startsWith("!color")) {
     https.get('https://api.popcat.xyz/randomcolor', (res) => {
       if (res.statusCode !== 200) {
@@ -237,6 +287,72 @@ client.on('messageCreate', async (msg) => {
       console.error("Error starting the snake game:", error);
       msg.channel.send("Something went wrong while starting the game!");
     }
+  }
+  else if (choices.includes(msg.content)) {
+    const imageName = 'avatar' + msg.content + '.png'
+    const image = fs.readFileSync(path.join(__dirname, imageName))
+    const attachment = new Discord.AttachmentBuilder(image, { name: 'avatar.png' })
+
+    msg.channel.send({ files: [attachment] })
+  }
+  else if (msg.content.startsWith("give phone")) {
+    if (msg.content.split(" ").length != 3) {
+      msg.channel.send("give area code")
+    }
+    else {
+      areaCode = msg.content.split(" ")[2]
+      if (isNaN(parseInt(areaCode))) {
+        msg.channel.send("give better area code (NaN)")
+      }
+      else if (areaCode.length != 3) {
+        msg.channel.send("give better area code (length not 3)")
+      }
+      else {
+        msg.channel.send("(" + areaCode + ") " + generateRandomString(3) + "-" + generateRandomString(4))
+      }
+    }
+
+  }
+  // else if (msg.author.id == "473355726983528451") {
+  //   splitString = msg.content.split(" ")
+  //   if (splitString.length > 4 && splitString.length < 9) {
+  //     splitString = shuffle(splitString).join(" ")
+  //     msg.channel.send(splitString)
+  //   }
+  // }
+  else if (!msg.author.bot) {
+    splitString = msg.content.split(" ")
+    if (splitString.length > 3) {
+      sorted = [...splitString].sort()
+      if (arraysAreEqual(sorted, splitString)) {
+        msg.channel.send("Wow! Your message was in order alphabetically!")
+      }
+    }
+
+    // var CloudmersiveNlpApiClient = require('cloudmersive-nlp-api-client');
+    // var defaultClient = CloudmersiveNlpApiClient.ApiClient.instance;
+    // // Configure API key authorization: Apikey
+    // var Apikey = defaultClient.authentications['Apikey'];
+    // Apikey.apiKey = 'f50f4072-25b6-4720-ba50-88f74b32535e';
+    // // Uncomment the following line to set a prefix for the API key, e.g. "Token" (defaults to null)
+    // //Apikey.apiKeyPrefix = 'Token';
+    // var apiInstance = new CloudmersiveNlpApiClient.WordsApi();
+    // var input = msg.content
+    // var callback = function (error, data, response) {
+    //   if (error) {
+    //     console.error(error);
+    //   } else {
+    //     console.log('API called successfully. Returned data: ' + data);
+    //     data = data.replace(/['"]+/g, '')
+    //     if (data !== "") {
+    //       firstNoun = data.split(",")[0].split("/")[0]
+    //       console.log(firstNoun);
+    //       console.log(msg.author.username)
+    //       msg.channel.send("Excellent " + firstNoun + ", " + msg.author.username + ". So proud of you for crushing another " + firstNoun + ". Keep up the hard work and remember that the sky's the limit!")
+    //     }
+    //   }
+    // };
+    // apiInstance.wordsNouns(input, callback);
   }
 })
 
@@ -340,6 +456,18 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+
+function generateRandomString(length) {
+  let result = '';
+  const digits = '0123456789';
+
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * digits.length);
+    result += digits.charAt(randomIndex);
+  }
+
+  return result;
+}
 
 //console.log(process.env.TOKEN)
 client.login(process.env.TOKEN)
