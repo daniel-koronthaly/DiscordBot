@@ -161,6 +161,7 @@ function moveSnake() {
     // Now check for collisions with walls or the snake itself (after moving)
     if (checkCollision(head)) {
         gameOver = true; // Set gameOver flag if collision occurs
+        snakeGameActive = false;
     }
 }
 
