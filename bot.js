@@ -321,7 +321,7 @@ client.on('messageCreate', async (msg) => {
   //   }
   // }
   else if (!msg.author.bot) {
-    splitString = msg.content.split(" ")
+    splitString = msg.content.toLowerCase().split(" ")
     if (splitString.length > 3) {
       sorted = [...splitString].sort()
       if (arraysAreEqual(sorted, splitString)) {
@@ -401,7 +401,6 @@ client.on('interactionCreate', async interaction => {
         ephemeral: true, // Only the invoker sees this
       });
 
-      console.log(`DM sent to ${user.tag} by ${interaction.user.tag}: ${messageContent}`);
     } catch (error) {
       console.error('Error sending DM:', error);
       await interaction.followUp({ content: 'An error occurred while sending the DM.', ephemeral: true });
@@ -440,7 +439,7 @@ client.on('interactionCreate', async interaction => {
 
     // Reveal the message content to the recipient
     await message.edit({
-      content: `**Message from ${author.displayName}:**\n\n${dmState.originalMessage}`,
+      content: `${dmState.originalMessage}`,
       components: [],
     });
 
@@ -451,8 +450,6 @@ client.on('interactionCreate', async interaction => {
 
     // Clean up the DM state for this message
     dmStates.delete(message.id);
-
-    console.log(`DM revealed to ${user.tag} by ${author.displayName}`);
   }
 });
 
