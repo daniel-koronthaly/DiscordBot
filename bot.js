@@ -97,8 +97,10 @@ const prefix = "!"
 
 function playSong(filePath) {
   const resource = voiceDiscord.createAudioResource(filePath, {
-    inputType: voiceDiscord.StreamType.Arbitrary
+    inputType: voiceDiscord.StreamType.Arbitrary,
+    inlineVolume: true,
   })
+  resource.volume.setVolume(2)
   player.play(resource)
 
   return voiceDiscord.entersState(player, voiceDiscord.AudioPlayerStatus.Playing, 5000)
