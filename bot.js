@@ -57,6 +57,19 @@ const rest = new Discord.REST({ version: '10' }).setToken(process.env.TOKEN);
   }
 })();
 
+function disconnectBot(guildId) {
+  // Get the voice connection for the guild
+  const connection = voiceDiscord.getVoiceConnection(guildId);
+
+  if (connection) {
+    // Destroy the connection to disconnect the bot
+    connection.destroy();
+    console.log(`Disconnected from the voice channel in guild: ${guildId}`);
+  } else {
+    console.log(`No active voice connection found in guild: ${guildId}`);
+  }
+}
+
 function pad(numberString, size) {
   let padded = numberString;
   while (padded.length < size) {
@@ -82,8 +95,8 @@ const player = voiceDiscord.createAudioPlayer()
 
 const prefix = "!"
 
-function playSong() {
-  const resource = voiceDiscord.createAudioResource("./hampster.mp4", {
+function playSong(filePath) {
+  const resource = voiceDiscord.createAudioResource(filePath, {
     inputType: voiceDiscord.StreamType.Arbitrary
   })
   player.play(resource)
@@ -113,13 +126,6 @@ function arraysAreEqual(array1, array2) {
 
 client.on('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`)
-  try {
-    await playSong();
-    console.log('Song is ready to play!');
-  } catch (error) {
-
-    console.error(error);
-  }
 })
 
 client.on('messageCreate', async (msg) => {
@@ -130,11 +136,44 @@ client.on('messageCreate', async (msg) => {
       return
     }
     else {
+      await playSong('./hampster.mp4');
       const connection = await connectToChannel(voiceChannel)
       connection.subscribe(player)
       await msg.reply('Playing now!');
     }
 
+  }
+  else if (msg.content === '!disconnect') {
+    disconnectBot(msg.guild.id);
+  }
+  else if (msg.content.startsWith('!delete')) {
+    // Split the message to get the message ID
+    const args = msg.content.split(' ');
+    const messageId = args[1]; // The message ID should be the second part of the command
+
+    if (!messageId) {
+      return msg.reply('Please provide a message ID to delete.');
+    }
+
+    try {
+      // Fetch the channel the command was sent in
+      const channel = msg.channel;
+
+      // Fetch the message with the given ID
+      const targetMessage = await channel.messages.fetch(messageId);
+
+      // Check if the message was sent by the bot
+      if (targetMessage.author.id !== client.user.id) {
+        return msg.reply('I can only delete my own messages.');
+      }
+
+      // Delete the target message
+      await targetMessage.delete();
+      console.log('Message deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      console.log('Could not delete the message. Make sure the ID is correct and the message exists.');
+    }
   }
   else if (msg.content === "Say hi") {
     console.log(msg.author)
@@ -262,12 +301,12 @@ client.on('messageCreate', async (msg) => {
     // Create buttons
     const button1 = new Discord.ButtonBuilder()
       .setCustomId('button1')
-      .setLabel('Button 1')
-      .setStyle(Discord.ButtonStyle.Primary);
+      .setEmoji('775309381817991168')
+      .setStyle(Discord.ButtonStyle.Secondary);
 
     const button2 = new Discord.ButtonBuilder()
       .setCustomId('button2')
-      .setLabel('Button 2')
+      .setEmoji('831126515252985886')
       .setStyle(Discord.ButtonStyle.Secondary);
 
     // Add buttons to an action row
@@ -275,7 +314,23 @@ client.on('messageCreate', async (msg) => {
 
     // Send a message with buttons
     await msg.channel.send({
-      content: 'Here are your buttons!',
+      content: '',
+      components: [row],
+    });
+  }
+  else if (msg.content === '!pedro') {
+    // Create buttons
+    const button1 = new Discord.ButtonBuilder()
+      .setCustomId('pedro')
+      .setEmoji('775309381817991168')
+      .setStyle(Discord.ButtonStyle.Secondary);
+
+
+    // Add buttons to an action row
+    const row = new Discord.ActionRowBuilder().addComponents(button1);
+
+    await msg.channel.send({
+      content: '',
       components: [row],
     });
   }
@@ -311,7 +366,9 @@ client.on('messageCreate', async (msg) => {
         msg.channel.send("(" + areaCode + ") " + generateRandomString(3) + "-" + generateRandomString(4))
       }
     }
-
+  }
+  else if (msg.content.startsWith("test")) {
+      console.log(msg.author)
   }
   // else if (msg.author.id == "473355726983528451") {
   //   splitString = msg.content.split(" ")
@@ -328,41 +385,34 @@ client.on('messageCreate', async (msg) => {
         msg.channel.send("Wow! Your message was in order alphabetically!")
       }
     }
-
-    // var CloudmersiveNlpApiClient = require('cloudmersive-nlp-api-client');
-    // var defaultClient = CloudmersiveNlpApiClient.ApiClient.instance;
-    // // Configure API key authorization: Apikey
-    // var Apikey = defaultClient.authentications['Apikey'];
-    // Apikey.apiKey = 'f50f4072-25b6-4720-ba50-88f74b32535e';
-    // // Uncomment the following line to set a prefix for the API key, e.g. "Token" (defaults to null)
-    // //Apikey.apiKeyPrefix = 'Token';
-    // var apiInstance = new CloudmersiveNlpApiClient.WordsApi();
-    // var input = msg.content
-    // var callback = function (error, data, response) {
-    //   if (error) {
-    //     console.error(error);
-    //   } else {
-    //     console.log('API called successfully. Returned data: ' + data);
-    //     data = data.replace(/['"]+/g, '')
-    //     if (data !== "") {
-    //       firstNoun = data.split(",")[0].split("/")[0]
-    //       console.log(firstNoun);
-    //       console.log(msg.author.username)
-    //       msg.channel.send("Excellent " + firstNoun + ", " + msg.author.username + ". So proud of you for crushing another " + firstNoun + ". Keep up the hard work and remember that the sky's the limit!")
-    //     }
-    //   }
-    // };
-    // apiInstance.wordsNouns(input, callback);
   }
+  
 })
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   if (interaction.customId === 'button1') {
-    await interaction.reply('You clicked Button 1!');
+    await interaction.reply('Pedro will kill you.');
   } else if (interaction.customId === 'button2') {
-    await interaction.reply('You clicked Button 2!');
+    await interaction.reply('Nick will kill you also.');
+  }
+  else if (interaction.customId === 'pedro') {
+    // Send a message with buttons
+    var voiceChannel = interaction.member.voice.channel
+    if (!voiceChannel) {
+      console.log("Not in a channel")
+      return
+    }
+    else {
+      await playSong('./jumpscare.mp3');
+      const connection = await connectToChannel(voiceChannel)
+      connection.subscribe(player)
+    }
+    await interaction.update({
+      content: 'https://tenor.com/view/five-nights-at-candy\'sf-fnac-fnac-3-fnaf-five-nights-at-freddy\'s-gif-12705573290353218296',
+      components: [], // Remove the button
+    });
   }
 });
 
