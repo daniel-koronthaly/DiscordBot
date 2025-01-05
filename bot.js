@@ -528,7 +528,7 @@ client.on('interactionCreate', async (interaction) => {
     const voteThreshold = interaction.options.getInteger('vote_threshold');
     const timeLimit = interaction.options.getInteger('time_limit');
 
-    if (!messageId || isNaN(voteThreshold) || isNaN(timeLimit)) {
+    if (!messageId || voteThreshold <= 0 || timeLimit <= 0) {
       return interaction.reply('Please provide a valid message ID, vote threshold, and time limit.');
     }
 
