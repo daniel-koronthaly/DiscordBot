@@ -37,6 +37,21 @@ const commands = [
         .setDescription('The message to send')
         .setRequired(true)
     ),
+  new Discord.SlashCommandBuilder()
+    .setName('vote')
+    .setDescription('Start a vote to keep or delete a message.')
+    .addStringOption(option =>
+      option.setName('message_id')
+        .setDescription('The ID of the message to vote on.')
+        .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('vote_threshold')
+        .setDescription('The number of delete votes needed to delete the message.')
+        .setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('time_limit')
+        .setDescription('Time limit for voting in seconds.')
+        .setRequired(true)),
 ].map(command => command.toJSON());
 
 // Register the commands with Discord's API
@@ -370,7 +385,7 @@ client.on('messageCreate', async (msg) => {
     }
   }
   else if (msg.content.startsWith("test")) {
-      console.log(msg.author)
+    console.log(msg.author)
   }
   // else if (msg.author.id == "473355726983528451") {
   //   splitString = msg.content.split(" ")
@@ -388,7 +403,7 @@ client.on('messageCreate', async (msg) => {
       }
     }
   }
-  
+
 })
 
 client.on('interactionCreate', async (interaction) => {
@@ -505,6 +520,118 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+votes = {}
+
+client.on('interactionCreate', async (interaction) => {
+  if (interaction.isCommand() && interaction.commandName === 'vote') {
+    const messageId = interaction.options.getString('message_id');
+    const voteThreshold = interaction.options.getInteger('vote_threshold');
+    const timeLimit = interaction.options.getInteger('time_limit');
+
+    if (!messageId || isNaN(voteThreshold) || isNaN(timeLimit)) {
+      return interaction.reply('Please provide a valid message ID, vote threshold, and time limit.');
+    }
+
+    try {
+      const targetMessage = await interaction.channel.messages.fetch(messageId);
+      const author = targetMessage.author;
+
+      const button = new Discord.ButtonBuilder()
+        .setCustomId('delete' + messageId)
+        .setLabel('Delete')
+        .setStyle(Discord.ButtonStyle.Danger);
+
+      const embed = new Discord.EmbedBuilder()
+        .setColor('#0099ff')
+        .setTitle(`Vote to Delete Message By ${author.username}`)
+        .setDescription(targetMessage.content)
+        .addFields(
+          [
+            { name: 'Votes Needed', value: voteThreshold.toString(), inline: true },
+            { name: 'Current Vote Count', value: '0', inline: true }
+          ]
+        )
+        .setThumbnail(author.displayAvatarURL({ dynamic: true, size: 64 })) // Set the author's avatar as thumbnail
+
+
+      const row = new Discord.ActionRowBuilder().addComponents(button);
+
+      let timeLeft = timeLimit;
+      let timeStart = Date.now();
+      let timerMessage = await interaction.reply({
+        content: `Voting started! Time remaining: <t:${Math.floor(timeStart / 1000 + timeLeft)}:R>`,
+        embeds: [embed],
+        components: [row],
+      });
+
+      votes[messageId] = { threshold: voteThreshold, voters: new Set(), msg: timerMessage, timeLimit: timeLimit, embed: embed }
+
+      // Countdown timer
+      const interval = setInterval(async () => {
+        timeLeft--;
+
+        if (timeLeft <= 0) {
+          delete votes[messageId]
+          clearInterval(interval);
+          try {
+            await timerMessage.edit({ content: "Ran out of time and threshold was not reached.", embeds: [] })
+
+            setTimeout(async () => {
+              try {
+                await timerMessage.delete();
+              } catch {
+                console.log('Message already deleted');
+              }
+            }, 3000);
+          }
+          catch {
+            console.log('already deleted')
+          }
+
+        }
+      }, 1000);
+    }
+    catch (error) {
+      console.log(error)
+    }
+  }
+});
+
+client.on('interactionCreate', async (interaction) => {
+  // Ensure it's a button interaction
+  if (interaction.isButton() && interaction.customId.startsWith('delete')) {
+    messageId = interaction.customId.replace('delete', '')
+    votes[messageId].voters.add(interaction.user.id)
+    const voteThreshold = votes[messageId].threshold;
+    const currentVotes = votes[messageId].voters.size;
+
+    const updatedEmbed = votes[messageId].embed
+      .setFields(
+        [
+          { name: 'Votes Needed', value: voteThreshold.toString(), inline: true },
+          { name: 'Current Vote Count', value: currentVotes.toString(), inline: true }
+        ]
+      );
+
+    // Edit the timer message with the updated embed and vote count
+    await votes[messageId].msg.edit({
+      content: `Voting started! Time remaining: <t:${Math.floor(Date.now() / 1000 + (votes[messageId].timeLimit || 0))}:R>`,
+      embeds: [updatedEmbed],
+    });
+    await interaction.deferUpdate();
+    if (votes[messageId].voters.size >= votes[messageId].threshold) {
+      try {
+        const targetMessage = await interaction.channel.messages.fetch(messageId);
+        await votes[messageId].msg.delete()
+        await targetMessage.delete();
+        delete votes[messageId]
+      }
+      catch {
+        console.log('Unable to delete ' + messageId)
+      }
+    }
+  }
+})
 
 function generateRandomString(length) {
   let result = '';
