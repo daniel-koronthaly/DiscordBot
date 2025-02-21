@@ -38,6 +38,19 @@ const commands = [
         .setRequired(true)
     ),
   new Discord.SlashCommandBuilder()
+    .setName('slowtype')
+    .setDescription('Send a direct message with a button to a user')
+    .addStringOption(option =>
+      option.setName('message')
+        .setDescription('The message to send')
+        .setRequired(true)
+    )
+    .addNumberOption(option =>
+      option.setName('seconds_between')
+        .setDescription('The number of seconds between letters.')
+        .setRequired(true)
+    ),
+  new Discord.SlashCommandBuilder()
     .setName('vote')
     .setDescription('Start a vote to keep or delete a message.')
     .addStringOption(option =>
@@ -179,10 +192,10 @@ client.on('messageCreate', async (msg) => {
       // Fetch the message with the given ID
       const targetMessage = await channel.messages.fetch(messageId);
 
-      // Check if the message was sent by the bot
-      if (targetMessage.author.id !== client.user.id) {
-        return msg.reply('I can only delete my own messages.');
-      }
+      // // Check if the message was sent by the bot
+      // if (targetMessage.author.id !== client.user.id) {
+      //   return msg.reply('I can only delete my own messages.');
+      // }
 
       // Delete the target message
       await targetMessage.delete();
@@ -250,6 +263,47 @@ client.on('messageCreate', async (msg) => {
         pad(seconds.toString(), 2),
       ].join(':');
       newMsg += (stringToCheck + " took " + timeFormatted + " to process")
+      msg.channel.send(newMsg)
+    }
+  }
+  else if (msg.content.startsWith("!wcount")) {
+    const start = performance.now();
+
+    console.log("starting processing for wcount")
+
+    messages = await msg.channel.messages.fetch({ limit: 1 })
+    let messagesFind = []
+
+    while (messages) {
+      addThese = await msg.channel.messages.fetch({ limit: 100, before: messages.id });
+      addThese.filter((msgss) => msgss.content).forEach(msg => messagesFind.push(msg))
+      messages = 0 < addThese.size ? addThese.at(addThese.size - 1) : null;
+    }
+    let values = Object.values(messagesFind.reduce((values, msg) => {
+      values[msg.author] = values[msg.author] || { name: msg.author, count: 0 };
+      values[msg.author].count += msg.content.split(" ").length;
+      return values;
+    }, {}));
+
+    let sorted = values.sort((a, b) => b.count - a.count)
+    let newMsg = "How many words people said \n\n";
+    for (var i = 0; i < sorted.length; i++) {
+      newMsg += sorted[i].name.username + " | " + sorted[i].count + "\n";
+      //console.log(sorted[i].name.username + " | " + sorted[i].count)
+    }
+
+    if (newMsg !== "") {
+      newMsg += "\n"
+      const ms = (performance.now() - start)
+      const seconds = Math.floor((ms / 1000) % 60);
+      const minutes = Math.floor((ms / 1000 / 60) % 60);
+      const hours = Math.floor((ms / 1000 / 3600) % 24)
+      const timeFormatted = [
+        pad(hours.toString(), 2),
+        pad(minutes.toString(), 2),
+        pad(seconds.toString(), 2),
+      ].join(':');
+      newMsg += ("wcount took " + timeFormatted + " to process")
       msg.channel.send(newMsg)
     }
   }
@@ -410,9 +464,9 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isButton()) return;
 
   if (interaction.customId === 'button1') {
-    await interaction.reply('Pedro will kill you.');
+    await interaction.reply('https://tenor.com/view/jump-scare-gif-18504612');
   } else if (interaction.customId === 'button2') {
-    await interaction.reply('Nick will kill you also.');
+    await interaction.reply('https://tenor.com/view/skeletoncrazy-gif-12619534970173952101');
   }
   else if (interaction.customId === 'pedro') {
     // Send a message with buttons
@@ -529,7 +583,7 @@ client.on('interactionCreate', async (interaction) => {
     const timeLimit = interaction.options.getInteger('time_limit');
 
     if (!messageId || voteThreshold <= 0 || timeLimit <= 0) {
-      return interaction.reply('Please provide a valid message ID, vote threshold, and time limit.');
+      return interaction.reply({ content: 'Please provide a valid message ID, vote threshold, and time limit.', ephemeral: true });
     }
 
     try {
@@ -632,6 +686,37 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 })
+
+client.on('interactionCreate', async (interaction) => {
+  if (interaction.isCommand() && interaction.commandName === 'slowtype') {
+    const messageContent = interaction.options.getString('message');
+    const secondsBetween = interaction.options.getNumber('seconds_between');
+
+    // Validate inputs
+    if (!messageContent || secondsBetween <= 0) {
+      return interaction.reply({content: 'Please provide a valid message and a positive number of seconds between edits.', ephemeral: true});
+    }
+
+    // Initial message sent
+    let currentIndex = 1;
+    const initialMessage = await interaction.reply({ content: messageContent[0], fetchReply: true });
+
+    // Typing effect with a timer
+    const interval = setInterval(async () => {
+      if (currentIndex < messageContent.length) {
+        currentIndex++;
+        try {
+          await initialMessage.edit(messageContent.slice(0, currentIndex)); // Update the message with the current substring
+        } catch (error) {
+          console.error('Error editing message:', error);
+          clearInterval(interval); // Stop the interval if editing fails
+        }
+      } else {
+        clearInterval(interval); // Stop the interval once the entire message is displayed
+      }
+    }, secondsBetween * 1000); // Convert seconds to milliseconds
+  }
+});
 
 function generateRandomString(length) {
   let result = '';
